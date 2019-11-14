@@ -1,4 +1,4 @@
-const algorithmia = require('algorithmia');
+const algorithmia = require('algorithmia')
 const algorithmiaApiKey = require('../credentials/algorithmia.json').apiKey
 const sentenceBoundaryDetection = require('sbd')
 
@@ -13,7 +13,8 @@ const nlu = new NaturalLanguageUnderstandingV1({
 
 const state = require('./state.js')
 
-async function robots(){
+async function robot() {
+  console.log('> [text-robot] Starting...')
   const content = state.load()
 
   await fetchContentFromWikipedia(content)
@@ -24,19 +25,21 @@ async function robots(){
 
   state.save(content)
 
-  async function fetchContentFromWikipedia(content){
+  async function fetchContentFromWikipedia(content) {
+    console.log('> [text-robot] Fetching content from Wikipedia')
     const algorithmiaAuthenticated = algorithmia(algorithmiaApiKey)
     const wikipediaAlgorithm = algorithmiaAuthenticated.algo('web/WikipediaParser/0.1.2')
     const wikipediaResponse = await wikipediaAlgorithm.pipe(content.searchTerm)
     const wikipediaContent = wikipediaResponse.get()
-    
+
     content.sourceContentOriginal = wikipediaContent.content
+    console.log('> [text-robot] Fetching done!')
   }
 
-  function sanitizeContent(content){
+  function sanitizeContent(content) {
     const withoutBlankLinesAndMarkdown = removeBlankLinesAndMarkdown(content.sourceContentOriginal)
     const withoutDatesInParentheses = removeDatesInParentheses(withoutBlankLinesAndMarkdown)
-    
+
     content.sourceContentSanitized = withoutDatesInParentheses
 
     function removeBlankLinesAndMarkdown(text) {
@@ -76,8 +79,14 @@ async function robots(){
   }
 
   async function fetchKeywordsOfAllSentences(content) {
+    console.log('> [text-robot] Starting to fetch keywords from Watson')
+
     for (const sentence of content.sentences) {
+      console.log(`> [text-robot] Sentence: "${sentence.text}"`)
+
       sentence.keywords = await fetchWatsonAndReturnKeywords(sentence.text)
+
+      console.log(`> [text-robot] Keywords: ${sentence.keywords.join(', ')}\n`)
     }
   }
 
@@ -90,7 +99,8 @@ async function robots(){
         }
       }, (error, response) => {
         if (error) {
-          throw error
+          reject(error)
+          return
         }
 
         const keywords = response.keywords.map((keyword) => {
@@ -104,4 +114,4 @@ async function robots(){
 
 }
 
-module.exports = robots;
+module.exports = robot
